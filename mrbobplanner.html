@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Special Ed Push-In AI Lesson Planner (Mr. Bob)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel Standalone for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase JS SDK (Compat mode for simple single-file deployment) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* STRICT PRINT OPTIMIZATION FOR CLEAN PAPER */
+        @media print {
+            .no-print, button, header, nav, .toast-notification, .preset-btn { 
+                display: none !important; 
+            }
+
+            @page {
+                size: landscape;
+                margin: 0.4in;
+            }
+
+            body { 
+                background-color: white !important; 
+                color: black !important;
+                font-size: 8.5pt !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .print-matrix-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 8pt !important;
+            }
+
+            .print-matrix-table th, .print-matrix-table td {
+                border: 1px solid #334155 !important;
+                padding: 5px 6px !important;
+                vertical-align: top !important;
+            }
+
+            .print-matrix-table th {
+                background-color: #0f172a !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .print-card {
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // =========================================================================
+        // 🔑 FIREBASE CONFIGURATION - PASTE YOUR KEYS FROM FIREBASE CONSOLE HERE!
+        // =========================================================================
+        const firebaseConfig = {
+apiKey: "AIzaSyAz5AaEaUPh82-UeisvPV-laa-GwB85UPE",
+  authDomain: "mrbob-planner.firebaseapp.com",
+  projectId: "mrbob-planner",
+  storageBucket: "mrbob-planner.firebasestorage.app",
+  messagingSenderId: "276838796552",
+  appId: "1:276838796552:web:7e9883517bda5adc7930bd",
+  measurementId: "G-1D99JDRH3H"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+        const DISTRICT_EVENTS_2026_2027 = {
+            "2026-08-07": { title: "First Day of School", type: "event" },
+            "2026-09-07": { title: "Labor Day Holiday", type: "holiday" },
+            "2026-09-15": { title: "Progress Reports", type: "info" },
+            "2026-10-08": { title: "End Q1 / Parent Conf / Early Release", type: "event" },
+            "2026-10-09": { title: "Teacher In-Service Day", type: "holiday" },
+            "2026-10-12": { title: "Fall Break", type: "holiday" },
+            "2026-10-13": { title: "Fall Break", type: "holiday" },
+            "2026-10-20": { title: "Report Cards Issued", type: "info" },
+            "2026-11-17": { title: "Progress Reports", type: "info" },
+            "2026-11-23": { title: "Thanksgiving Break", type: "holiday" },
+            "2026-11-24": { title: "Thanksgiving Break", type: "holiday" },
+            "2026-11-25": { title: "Thanksgiving Break", type: "holiday" },
+            "2026-11-26": { title: "Thanksgiving Break", type: "holiday" },
+            "2026-11-27": { title: "Thanksgiving Break", type: "holiday" },
+            "2026-12-18": { title: "End Q2 / Semester 1 / Early Release", type: "event" },
+            "2026-12-21": { title: "Christmas Holiday", type: "holiday" },
+            "2027-01-04": { title: "Teacher In-Service Day", type: "holiday" },
+            "2027-01-05": { title: "Students Return - Sem 2", type: "event" },
+            "2027-01-18": { title: "MLK Jr. Holiday", type: "holiday" },
+            "2027-02-09": { title: "Progress Reports", type: "info" },
+            "2027-02-12": { title: "Winter Break", type: "holiday" },
+            "2027-02-15": { title: "Winter Break", type: "holiday" },
+            "2027-03-11": { title: "End of 3rd Quarter", type: "info" },
+            "2027-03-12": { title: "Teacher In-Service Day", type: "holiday" },
+            "2027-04-05": { title: "Spring Break", type: "holiday" },
+            "2027-04-06": { title: "Spring Break", type: "holiday" },
+            "2027-04-07": { title: "Spring Break", type: "holiday" },
+            "2027-04-08": { title: "Spring Break", type: "holiday" },
+            "2027-04-09": { title: "Spring Break", type: "holiday" },
+            "2027-05-26": { title: "Last Day of School / Early Release", type: "event" }
+        };
+
+        const MASTER_SCHEDULE_BLOCKS = [
+            { id: "block_1", time: "8:10 - 9:45 AM", title: "1st Grade Arts & Letters (Holloman)", defaultStandard: "ELAGSE1RL1 / ELAGSE1RI1", badgeColor: "bg-blue-100 text-blue-900 border-blue-300", icon: "fa-book-open-reader" },
+            { id: "block_2", time: "9:45 - 10:30 AM", title: "Phonics Block", defaultStandard: "ELAGSE1RF3 (Phonics & Word Recognition)", badgeColor: "bg-amber-100 text-amber-900 border-amber-300", icon: "fa-spell-check" },
+            { id: "block_4", time: "11:45 AM - 12:50 PM", title: "1st Grade Math (Holloman)", defaultStandard: "MGSE1.OA.1 / MGSE1.OA.6", badgeColor: "bg-emerald-100 text-emerald-900 border-emerald-300", icon: "fa-calculator" },
+            { id: "block_5", time: "12:50 - 1:40 PM", title: "1st Grade WIN (What I Need)", defaultStandard: "ELAGSE1RF2 / ELAGSE1RF3", badgeColor: "bg-purple-100 text-purple-900 border-purple-300", icon: "fa-bullseye" },
+            { id: "block_7", time: "2:15 - 2:50 PM", title: "3rd Grade Social Studies & Science", defaultStandard: "S3E1 / SS3H1", badgeColor: "bg-cyan-100 text-cyan-900 border-cyan-300", icon: "fa-flask" }
+        ];
+
+        const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+        const generateSchoolWeeks = () => {
+            const weeks = [];
+            let startDate = new Date(2026, 7, 3);
+            for (let i = 1; i <= 38; i++) {
+                const dates = [];
+                for (let d = 0; d < 5; d++) {
+                    const current = new Date(startDate);
+                    current.setDate(startDate.getDate() + d);
+                    const month = (current.getMonth() + 1).toString().padStart(2, '0');
+                    const day = current.getDate().toString().padStart(2, '0');
+                    dates.push(`${current.getFullYear()}-${month}-${day}`);
+                }
+                const formatLabelDate = (dStr) => {
+                    const parts = dStr.split('-');
+                    return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+                };
+                weeks.push({ id: `week_${i}`, number: i, label: `Week ${i}: ${formatLabelDate(dates[0])} - ${formatLabelDate(dates[4])}`, dates: dates });
+                startDate.setDate(startDate.getDate() + 7);
+            }
+            return weeks;
+        };
+
+        const SCHOOL_WEEKS = generateSchoolWeeks();
+
+        const App = () => {
+            const [selectedWeekId, setSelectedWeekId] = React.useState("week_1");
+            const [selectedDayIndex, setSelectedDayIndex] = React.useState(0);
+            const [activeTab, setActiveTab] = React.useState("sunday_ai"); 
+            const [lessonPlans, setLessonPlans] = React.useState({});
+            const [cloudSyncStatus, setCloudSyncStatus] = React.useState("connecting"); // 'connecting', 'synced', 'saving', 'error'
+            
+            const [sundayNotes, setSundayNotes] = React.useState("UFLI 23 Mon/Tue, UFLI 24 Wed/Thu, Fri review. Arts & Letters Module 1 Lesson 5. Math: double-digit addition with ten frames. WIN: CVC probes. 3rd Sci: rocks lab.");
+            const [customNewsNotes, setCustomNewsNotes] = React.useState("Picture Day on Thursday (no green!). Library books due Wednesday.");
+            const [newsletterData, setNewsletterData] = React.useState(null);
+            const [isGeneratingNewsletter, setIsGeneratingNewsletter] = React.useState(false);
+            const [isGenerating, setIsGenerating] = React.useState(false);
+            const [notification, setNotification] = React.useState(null);
+
+            const showToast = (msg) => {
+                setNotification(msg);
+                setTimeout(() => setNotification(null), 3500);
+            };
+
+            // REAL-TIME FIREBASE DB LISTENER
+            React.useEffect(() => {
+                const plannerRef = db.ref("mr_bob_plans");
+                
+                // Realtime subscription: updates when changes occur on any computer
+                const handleData = (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        setLessonPlans(data);
+                    }
+                    setCloudSyncStatus("synced");
+                };
+
+                plannerRef.on("value", handleData, (error) => {
+                    console.error("Firebase Sync Error:", error);
+                    setCloudSyncStatus("error");
+                });
+
+                return () => plannerRef.off("value", handleData);
+            }, []);
+
+            // Helper function to update state and push to Firebase Cloud
+            const saveToCloud = (updatedPlans) => {
+                setLessonPlans(updatedPlans);
+                setCloudSyncStatus("saving");
+                db.ref("mr_bob_plans").set(updatedPlans)
+                    .then(() => setCloudSyncStatus("synced"))
+                    .catch((err) => {
+                        console.error("Cloud Save Failed:", err);
+                        setCloudSyncStatus("error");
+                    });
+            };
+
+            const currentWeek = SCHOOL_WEEKS.find(w => w.id === selectedWeekId) || SCHOOL_WEEKS[0];
+            const currentDayName = DAYS_OF_WEEK[selectedDayIndex];
+            const currentDayDate = currentWeek.dates[selectedDayIndex];
+
+            const getPlanForBlock = (weekId, dayIdx, blockId) => {
+                const blockInfo = MASTER_SCHEDULE_BLOCKS.find(b => b.id === blockId);
+                const defaultStd = blockInfo ? blockInfo.defaultStandard : "";
+                return lessonPlans[weekId]?.[dayIdx]?.[blockId] || { standard: defaultStd, objective: "", tasks: "", differentiation: "", assessment: "" };
+            };
+
+            const updatePlanField = (weekId, dayIdx, blockId, field, value) => {
+                const weekData = lessonPlans[weekId] || {};
+                const dayData = weekData[dayIdx] || {};
+                const blockInfo = MASTER_SCHEDULE_BLOCKS.find(b => b.id === blockId);
+                const defaultStd = blockInfo ? blockInfo.defaultStandard : "";
+                const blockData = dayData[blockId] || { standard: defaultStd, objective: "", tasks: "", differentiation: "", assessment: "" };
+
+                const updatedPlans = {
+                    ...lessonPlans,
+                    [weekId]: {
+                        ...weekData,
+                        [dayIdx]: {
+                            ...dayData,
+                            [blockId]: {
+                                ...blockData,
+                                [field]: value
+                            }
+                        }
+                    }
+                };
+
+                saveToCloud(updatedPlans);
+            };
+
+            const handleGenerateFromSundayNotes = () => {
+                if (!sundayNotes.trim()) {
+                    showToast("Please enter quick Sunday notes before generating!");
+                    return;
+                }
+
+                setIsGenerating(true);
+                showToast("✨ Auto-parsing notes into 5-day plan...");
+
+                setTimeout(() => {
+                    const text = sundayNotes || "";
+                    const artsMatch = text.match(/(?:arts\s*&(?:amp;)?\s*letters|module|reading|story)[^.]*/i);
+                    const artsTopic = artsMatch ? artsMatch[0].trim() : "Module story & guided reading vocabulary";
+                    const ufliMatches = text.match(/ufli\s*(?:lesson\s*)?\d+/gi) || [];
+                    const ufliLesson1 = ufliMatches[0] || "UFLI target lesson";
+                    const ufliLesson2 = ufliMatches[1] || ufliMatches[0] || "UFLI target lesson review";
+                    const mathMatch = text.match(/(?:math|addition|subtraction|ten frames|numbers)[^.]*/i);
+                    const mathTopic = mathMatch ? mathMatch[0].trim() : "guided math problem sets & ten frames";
+                    const winMatch = text.match(/(?:win|cvc|fluency|probes|phonics review)[^.]*/i);
+                    const winTopic = winMatch ? winMatch[0].trim() : "CVC decodable fluency probes";
+                    const sciMatch = text.match(/(?:science|social studies|rocks|lab|sci|habitat|map)[^.]*/i);
+                    const sciTopic = sciMatch ? sciMatch[0].trim() : "guided science observation lab";
+
+                    const dayPlans = {};
+                    DAYS_OF_WEEK.forEach((dName, dayIdx) => {
+                        const isMonTue = dayIdx < 2;
+                        const isWedThu = dayIdx >= 2 && dayIdx < 4;
+                        const phonicsTopic = isMonTue ? ufliLesson1 : (isWedThu ? ufliLesson2 : "Phonics review & decodable games");
+
+                        dayPlans[dayIdx] = {
+                            block_1: { standard: "ELAGSE1RL1 / ELAGSE1RI1", objective: `SWBAT comprehend story elements in ${artsTopic}.`, tasks: `Participate in Arts & Letters push-in lesson (${artsTopic}), partner read.`, differentiation: "Sentence frames, visual anchor charts, small-group scaffolding.", assessment: "Formative observation check." },
+                            block_2: { standard: "ELAGSE1RF3 (Phonics)", objective: `SWBAT blend, segment, and write target phonics concepts from ${phonicsTopic}.`, tasks: `UFLI visual warm-up, magnetic letter word building, dictation practice.`, differentiation: "Elkonin sound boxes, tactile letter tiles, visual cards.", assessment: "End-of-lesson dictation check." },
+                            block_4: { standard: "MGSE1.OA.1 / MGSE1.OA.6", objective: `SWBAT solve math problems focusing on ${mathTopic}.`, tasks: `Push-in small group math practice related to ${mathTopic}.`, differentiation: "Physical counters, ten frames, visual model chart.", assessment: "Exit ticket check." },
+                            block_5: { standard: "ELAGSE1RF2 / ELAGSE1RF3", objective: `SWBAT demonstrate decodable reading fluency in ${winTopic}.`, tasks: `WIN small group rotation: targeted practice with ${winTopic}.`, differentiation: "Finger-tracker strips, tactile sound cards.", assessment: "1-minute fluency probe." },
+                            block_7: { standard: "S3E1 / SS3H1", objective: `SWBAT explore concepts during ${sciTopic}.`, tasks: `3rd grade Science/SS push-in block focusing on ${sciTopic}.`, differentiation: "Pre-taught vocabulary cards, peer partner support.", assessment: "Lab sheet review." }
+                        };
+                    });
+
+                    const updated = { ...lessonPlans, [selectedWeekId]: dayPlans };
+                    saveToCloud(updated);
+                    setIsGenerating(false);
+                    showToast("🎉 5-Day Plan successfully synced to cloud!");
+                    setActiveTab("daily");
+                }, 400);
+            };
+
+            const handleGenerateNewsletter = () => {
+                setIsGeneratingNewsletter(true);
+                setTimeout(() => {
+                    setNewsletterData({
+                        announcements: [customNewsNotes || "No special announcements this week.", "Please check folders daily for homework updates."],
+                        artsLettersHighlight: "Exploring Module story characters, maps, and key vocabulary with guided supports.",
+                        phonicsHighlight: "UFLI Phonics blending, segmenting, sound building, and dictation practice.",
+                        mathHighlight: "Mastering double-digit addition using hands-on ten frames and number lines.",
+                        scienceHighlight: "Hands-on guided science observation lab!",
+                        homeTip: "Spend 5 minutes each evening reading a decodable word list together!"
+                    });
+                    setIsGeneratingNewsletter(false);
+                }, 400);
+            };
+
+            const copyNewsletterText = () => {
+                if (!newsletterData) return;
+                const text = `🌟 MR. BOB'S WEEKLY NEWSLETTER
+Comer Elementary School • Week: ${currentWeek.label}
+
+📢 ANNOUNCEMENTS:
+${newsletterData.announcements.map(a => `• ${a}`).join('\n')}
+
+📚 WHAT WE ARE LEARNING:
+• 📖 Reading: ${newsletterData.artsLettersHighlight}
+• 🔤 Phonics: ${newsletterData.phonicsHighlight}
+• 🔢 Math: ${newsletterData.mathHighlight}
+• 🔬 Science: ${newsletterData.scienceHighlight}
+
+🌟 HOME TIP: ${newsletterData.homeTip}`;
+
+                navigator.clipboard.writeText(text);
+                showToast("📋 Newsletter copied to clipboard!");
+            };
+
+            const getEventForDate = (dateStr) => DISTRICT_EVENTS_2026_2027[dateStr];
+
+            return (
+                <div className="min-h-screen flex flex-col bg-slate-50">
+                    
+                    {/* Header with Cloud Status Indicator */}
+                    <header className="bg-blue-950 text-white shadow-md sticky top-0 z-30 no-print border-b border-blue-900">
+                        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-yellow-400 text-blue-950 p-2.5 rounded-xl font-black text-xl flex items-center justify-center w-11 h-11">
+                                    <i className="fa-solid fa-meteor"></i>
+                                </div>
+                                <div>
+                                    <h1 className="font-extrabold text-lg leading-none">Special Ed Push-In Planner</h1>
+                                    <div className="flex items-center space-x-2 mt-1">
+                                        <span className="text-xs text-yellow-300 font-bold">Mr. Bob &bull; Comer Elementary</span>
+                                        
+                                        {/* Cloud Sync Status Badge */}
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex items-center space-x-1 ${
+                                            cloudSyncStatus === 'synced' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                                            cloudSyncStatus === 'saving' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse' :
+                                            cloudSyncStatus === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/40' :
+                                            'bg-blue-800 text-blue-200'
+                                        }`}>
+                                            <i className={`fa-solid ${cloudSyncStatus === 'synced' ? 'fa-cloud-check' : cloudSyncStatus === 'saving' ? 'fa-cloud-arrow-up' : 'fa-cloud'}`}></i>
+                                            <span>
+                                                {cloudSyncStatus === 'synced' ? 'Cloud Synced' : 
+                                                 cloudSyncStatus === 'saving' ? 'Saving...' : 
+                                                 cloudSyncStatus === 'error' ? 'Sync Error' : 'Connecting...'}
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <label className="text-xs font-semibold text-blue-200 whitespace-nowrap">Select Week:</label>
+                                <select 
+                                    value={selectedWeekId} 
+                                    onChange={(e) => setSelectedWeekId(e.target.value)}
+                                    className="bg-blue-900 text-yellow-300 font-bold text-xs py-2 px-3 rounded-xl border border-blue-700"
+                                >
+                                    {schoolWeeks.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="max-w-7xl mx-auto px-4 flex border-t border-blue-900 overflow-x-auto text-xs">
+                            {[
+                                { id: "sunday_ai", icon: "fa-wand-magic-sparkles", label: "1. Sunday AI Quick Planner" },
+                                { id: "daily", icon: "fa-calendar-day", label: "2. Daily Block Editor" },
+                                { id: "weekly_matrix", icon: "fa-table-cells", label: "3. Full Week Matrix" },
+                                { id: "newsletter", icon: "fa-newspaper", label: "4. Weekly Newsletter" },
+                                { id: "print", icon: "fa-print", label: "5. Print / Submit to Admin" }
+                            ].map(tab => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`py-2.5 px-4 font-bold flex items-center space-x-2 border-b-2 transition whitespace-nowrap ${
+                                        activeTab === tab.id ? "border-yellow-400 text-yellow-300 bg-blue-900/80" : "border-transparent text-blue-300 hover:text-white"
+                                    }`}
+                                >
+                                    <i className={`fa-solid ${tab.icon} text-yellow-400`}></i>
+                                    <span>{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </header>
+
+                    {notification && (
+                        <div className="toast-notification fixed bottom-5 right-5 z-50 bg-blue-950 text-white px-4 py-3 rounded-xl shadow-xl border border-yellow-400 flex items-center space-x-3 text-xs font-semibold animate-bounce no-print">
+                            <i className="fa-solid fa-circle-check text-yellow-400 text-base"></i>
+                            <span>{notification}</span>
+                        </div>
+                    )}
+
+                    <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+                        
+                        {/* TAB 1: SUNDAY AI */}
+                        {activeTab === "sunday_ai" && (
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                                <div className="border-b border-slate-200 pb-4">
+                                    <div className="flex items-center space-x-2 text-amber-600 font-extrabold text-xs uppercase tracking-wider">
+                                        <i className="fa-solid fa-wand-magic-sparkles"></i>
+                                        <span>Cloud-Synced Sunday Planner</span>
+                                    </div>
+                                    <h2 className="text-xl font-black text-slate-900 mt-1">Type Quick Notes & Auto-Fill Entire Week</h2>
+                                    <p className="text-xs text-slate-500 mt-1">Changes are saved instantly to Firebase Cloud and accessible on any device.</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-bold text-slate-800">Your Sunday Notes for {currentWeek.label}:</label>
+                                    <textarea 
+                                        rows="4"
+                                        value={sundayNotes}
+                                        onChange={(e) => setSundayNotes(e.target.value)}
+                                        className="w-full p-3.5 border border-slate-300 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm"
+                                    />
+                                </div>
+
+                                <button 
+                                    onClick={handleGenerateFromSundayNotes}
+                                    disabled={isGenerating}
+                                    className="bg-gradient-to-r from-yellow-400 to-amber-500 text-blue-950 font-black px-6 py-3 rounded-xl shadow transition text-xs sm:text-sm disabled:opacity-50"
+                                >
+                                    {isGenerating ? "AI Generating & Syncing..." : "✨ Magic Fill Entire Week & Sync to Cloud"}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* TAB 2: DAILY EDITOR */}
+                        {activeTab === "daily" && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-2xl p-2 shadow-sm border flex overflow-x-auto gap-2 no-print">
+                                    {DAYS_OF_WEEK.map((dName, idx) => (
+                                        <button
+                                            key={dName}
+                                            onClick={() => setSelectedDayIndex(idx)}
+                                            className={`flex-1 min-w-[120px] p-2.5 rounded-xl font-bold text-xs border ${
+                                                selectedDayIndex === idx ? "bg-blue-950 text-yellow-300 border-blue-950" : "bg-slate-50 text-slate-600"
+                                            }`}
+                                        >
+                                            <span className="uppercase text-[10px]">{dName}</span>
+                                            <span className="text-xs font-black block">{currentWeek.dates[idx]}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-4">
+                                    {MASTER_SCHEDULE_BLOCKS.map((block) => {
+                                        const plan = getPlanForBlock(selectedWeekId, selectedDayIndex, block.id);
+                                        return (
+                                            <div key={block.id} className="bg-white border rounded-2xl p-4 shadow-sm space-y-3">
+                                                <div className="font-black text-xs sm:text-sm text-slate-900">{block.title} ({block.time})</div>
+                                                <div className="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200">
+                                                    <label className="font-extrabold text-amber-900 text-xs block mb-1">Georgia Standard (GSE):</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={plan.standard}
+                                                        onChange={(e) => updatePlanField(selectedWeekId, selectedDayIndex, block.id, 'standard', e.target.value)}
+                                                        className="w-full p-2 border rounded-lg text-xs font-semibold bg-white"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                                    <div>
+                                                        <label className="font-bold text-slate-700 block mb-1">🎯 Objective:</label>
+                                                        <textarea rows="2" value={plan.objective} onChange={(e) => updatePlanField(selectedWeekId, selectedDayIndex, block.id, 'objective', e.target.value)} className="w-full p-2 border rounded-lg" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="font-bold text-slate-700 block mb-1">✏️ Student Tasks:</label>
+                                                        <textarea rows="2" value={plan.tasks} onChange={(e) => updatePlanField(selectedWeekId, selectedDayIndex, block.id, 'tasks', e.target.value)} className="w-full p-2 border rounded-lg" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="font-bold text-slate-700 block mb-1">💡 Differentiation:</label>
+                                                        <textarea rows="2" value={plan.differentiation} onChange={(e) => updatePlanField(selectedWeekId, selectedDayIndex, block.id, 'differentiation', e.target.value)} className="w-full p-2 border rounded-lg" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="font-bold text-slate-700 block mb-1">📊 Assessment:</label>
+                                                        <textarea rows="2" value={plan.assessment} onChange={(e) => updatePlanField(selectedWeekId, selectedDayIndex, block.id, 'assessment', e.target.value)} className="w-full p-2 border rounded-lg" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 3: MATRIX */}
+                        {activeTab === "weekly_matrix" && (
+                            <div className="bg-white rounded-2xl p-5 shadow-sm border space-y-4 overflow-x-auto">
+                                <div className="flex justify-between items-center no-print border-b pb-3">
+                                    <h2 className="text-base font-black text-slate-900">Full Week Matrix ({currentWeek.label})</h2>
+                                    <button onClick={() => setActiveTab("print")} className="bg-blue-950 text-yellow-300 font-bold px-3 py-1.5 rounded-lg text-xs">
+                                        <i className="fa-solid fa-print"></i> Print Matrix
+                                    </button>
+                                </div>
+                                <table className="w-full border-collapse text-left border min-w-[950px] text-xs">
+                                    <thead>
+                                        <tr className="bg-blue-950 text-white">
+                                            <th className="p-2.5 border w-44 font-black">Time / Block</th>
+                                            {DAYS_OF_WEEK.map((dName, idx) => (
+                                                <th key={dName} className="p-2.5 border">
+                                                    <span className="block font-black">{dName}</span>
+                                                    <span className="text-[10px] text-yellow-300">{currentWeek.dates[idx]}</span>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {MASTER_SCHEDULE_BLOCKS.map((block) => (
+                                            <tr key={block.id} className="border-b">
+                                                <td className="p-2.5 bg-slate-50 border font-bold text-slate-800">{block.title}<div className="text-[10px] text-slate-500 font-normal">{block.time}</div></td>
+                                                {DAYS_OF_WEEK.map((_, dayIdx) => {
+                                                    const plan = getPlanForBlock(selectedWeekId, dayIdx, block.id);
+                                                    return (
+                                                        <td key={dayIdx} className="p-2 border align-top space-y-1">
+                                                            {plan.standard && <div className="bg-amber-100 text-amber-900 text-[9px] font-black px-1 rounded">🏛️ {plan.standard}</div>}
+                                                            {plan.objective && <div><strong className="text-amber-700 block text-[9px]">🎯 Obj:</strong><p className="text-[10px]">{plan.objective}</p></div>}
+                                                            {plan.tasks && <div><strong className="text-blue-700 block text-[9px]">✏️ Task:</strong><p className="text-[10px]">{plan.tasks}</p></div>}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* TAB 4: NEWSLETTER */}
+                        {activeTab === "newsletter" && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-2xl p-5 border space-y-4 no-print">
+                                    <h2 className="text-lg font-black">Weekly Parent Newsletter</h2>
+                                    <input type="text" value={customNewsNotes} onChange={(e) => setCustomNewsNotes(e.target.value)} className="w-full p-2.5 border rounded-lg text-xs" placeholder="Special announcements..." />
+                                    <button onClick={handleGenerateNewsletter} className="bg-yellow-400 text-blue-950 font-black px-4 py-2 rounded-xl text-xs">✨ Auto-Generate Newsletter</button>
+                                </div>
+
+                                {newsletterData && (
+                                    <div className="space-y-4">
+                                        <div className="flex justify-end space-x-2 no-print">
+                                            <button onClick={copyNewsletterText} className="bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs border"><i className="fa-solid fa-copy"></i> Copy Text</button>
+                                            <button onClick={() => window.print()} className="bg-blue-950 text-yellow-300 font-bold px-4 py-1.5 rounded-lg text-xs"><i className="fa-solid fa-print"></i> Print Newsletter</button>
+                                        </div>
+                                        <div className="print-card bg-white rounded-2xl border-2 border-blue-950 p-6 space-y-6">
+                                            <div className="bg-blue-950 text-white p-5 rounded-xl border-b-4 border-yellow-400 flex justify-between items-center">
+                                                <div>
+                                                    <h1 className="text-xl font-black uppercase">Mr. Bob's Weekly Newsletter</h1>
+                                                    <p className="text-xs text-yellow-300 font-bold">Comer Elementary School</p>
+                                                </div>
+                                                <span className="text-xs font-bold text-yellow-300">{currentWeek.label}</span>
+                                            </div>
+                                            <div className="bg-amber-50 border p-4 rounded-xl text-xs space-y-1">
+                                                <strong className="text-amber-900 block">ANNOUNCEMENTS:</strong>
+                                                {newsletterData.announcements.map((a, i) => <div key={i}>• {a}</div>)}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div className="bg-slate-50 border p-3 rounded-xl"><strong>📖 Reading:</strong> <p>{newsletterData.artsLettersHighlight}</p></div>
+                                                <div className="bg-slate-50 border p-3 rounded-xl"><strong>🔤 Phonics:</strong> <p>{newsletterData.phonicsHighlight}</p></div>
+                                                <div className="bg-slate-50 border p-3 rounded-xl"><strong>🔢 Math:</strong> <p>{newsletterData.mathHighlight}</p></div>
+                                                <div className="bg-slate-50 border p-3 rounded-xl"><strong>🔬 Science:</strong> <p>{newsletterData.scienceHighlight}</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* TAB 5: CLEAN PRINT MATRIX */}
+                        {activeTab === "print" && (
+                            <div className="space-y-6">
+                                <div className="bg-blue-950 text-white p-4 rounded-2xl flex justify-between items-center no-print">
+                                    <div>
+                                        <h2 className="text-base font-black text-yellow-300">Clean Print Layout</h2>
+                                        <p className="text-xs text-blue-200">Prints only the document table with no web headers or buttons.</p>
+                                    </div>
+                                    <button onClick={() => window.print()} className="bg-yellow-400 text-blue-950 font-black px-6 py-2.5 rounded-xl text-xs">
+                                        <i className="fa-solid fa-print"></i> Print Clean Paper
+                                    </button>
+                                </div>
+
+                                <div className="print-card bg-white p-6 rounded-2xl border space-y-4">
+                                    <div className="border-b-2 border-blue-950 pb-3 flex justify-between">
+                                        <div>
+                                            <h1 className="text-lg font-black uppercase text-blue-950">Madison County Charter School System</h1>
+                                            <h2 className="text-xs font-bold text-amber-600">Comer Elementary School &bull; Special Education Push-In Matrix</h2>
+                                        </div>
+                                        <div className="text-right text-xs">
+                                            <div><strong>Teacher:</strong> Mr. Bob</div>
+                                            <div><strong>Week:</strong> {currentWeek.label}</div>
+                                        </div>
+                                    </div>
+
+                                    <table className="w-full border-collapse text-left print-matrix-table text-xs">
+                                        <thead>
+                                            <tr className="bg-blue-950 text-white">
+                                                <th className="p-2 border w-40 font-black">Time / Block</th>
+                                                {DAYS_OF_WEEK.map((dName, idx) => (
+                                                    <th key={dName} className="p-2 border">
+                                                        <span className="block font-black">{dName}</span>
+                                                        <span className="text-[10px] text-yellow-300 font-normal">{currentWeek.dates[idx]}</span>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {MASTER_SCHEDULE_BLOCKS.map((block) => (
+                                                <tr key={block.id} className="border-b">
+                                                    <td className="p-2 bg-slate-50 border font-bold text-slate-800">{block.title}<div className="text-[10px] text-slate-500 font-semibold">{block.time}</div></td>
+                                                    {DAYS_OF_WEEK.map((_, dayIdx) => {
+                                                        const plan = getPlanForBlock(selectedWeekId, dayIdx, block.id);
+                                                        return (
+                                                            <td key={dayIdx} className="p-2 border align-top space-y-1">
+                                                                {plan.standard && <div className="text-[9px] font-black text-amber-900 bg-amber-100 px-1 rounded border inline-block">🏛️ {plan.standard}</div>}
+                                                                <div><strong className="text-amber-800 block text-[9px]">🎯 OBJ:</strong><p className="text-[10px]">{plan.objective || "N/A"}</p></div>
+                                                                <div><strong className="text-blue-800 block text-[9px]">✏️ TASK:</strong><p className="text-[10px]">{plan.tasks || "N/A"}</p></div>
+                                                                <div><strong className="text-purple-800 block text-[9px]">💡 DIFF:</strong><p className="text-[10px]">{plan.differentiation || "N/A"}</p></div>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                    </main>
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
